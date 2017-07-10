@@ -18,7 +18,6 @@ import (
 	"github.com/ehazlett/interlock/config"
 	"github.com/ehazlett/interlock/events"
 	"github.com/ehazlett/interlock/ext"
-	"github.com/ehazlett/interlock/ext/beacon"
 	"github.com/ehazlett/interlock/ext/lb"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
@@ -232,17 +231,6 @@ func (s *Server) loadExtensions(client *client.Client) {
 			p, err := lb.NewLoadBalancer(x, client)
 			if err != nil {
 				log.Errorf("error loading load balancer extension: %s", err)
-				continue
-			}
-			s.extensions = append(s.extensions, p)
-		case "beacon":
-			if !s.cfg.EnableMetrics {
-				log.Errorf("unable to load beacon: metrics are disabled")
-				continue
-			}
-			p, err := beacon.NewBeacon(x, client)
-			if err != nil {
-				log.Errorf("error loading beacon extension: %s", err)
 				continue
 			}
 			s.extensions = append(s.extensions, p)

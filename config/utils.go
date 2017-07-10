@@ -17,9 +17,6 @@ func ParseConfig(data string) (*Config, error) {
 		if err := SetConfigDefaults(ext); err != nil {
 			return nil, err
 		}
-
-		// FIXME: toml isn't being parse right so we hack the rules in like so
-		ext.Rules = cfg.Rules
 	}
 
 	return &cfg, nil
@@ -41,8 +38,6 @@ func SetConfigDefaults(c *ExtensionConfig) error {
 		SetHAProxyConfigDefaults(c)
 	case "nginx":
 		SetNginxConfigDefaults(c)
-	case "beacon":
-		SetBeaconConfigDefaults(c)
 	default:
 		log.Debugf("unknown extension %q; not loading config defaults", c.Name)
 	}
@@ -115,15 +110,5 @@ func SetNginxConfigDefaults(c *ExtensionConfig) {
 
 	if c.SSLProtocols == "" {
 		c.SSLProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"
-	}
-}
-
-func SetBeaconConfigDefaults(c *ExtensionConfig) {
-	if c.StatsInterval == "" {
-		c.StatsInterval = "30s"
-	}
-
-	if c.StatsInfluxDBPrecision == "" {
-		c.StatsInfluxDBPrecision = "s"
 	}
 }
