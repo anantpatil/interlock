@@ -15,7 +15,7 @@ type Node struct {
 }
 
 func (s *Server) getSwarmNodes() ([]*Node, error) {
-	client, err := s.getDockerClient()
+	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return nil, err
 	}

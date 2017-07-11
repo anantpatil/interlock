@@ -5,15 +5,16 @@ import (
 
 	engineClient "github.com/docker/docker/client"
 	"github.com/ehazlett/interlock/client"
+	"github.com/ehazlett/interlock/config"
 )
 
-func (s *Server) getDockerClient() (*engineClient.Client, error) {
+func getDockerClient(cfg *config.Config) (*engineClient.Client, error) {
 	return client.GetDockerClient(
-		s.cfg.DockerURL,
-		s.cfg.TLSCACert,
-		s.cfg.TLSCert,
-		s.cfg.TLSKey,
-		s.cfg.AllowInsecure,
+		cfg.DockerURL,
+		cfg.TLSCACert,
+		cfg.TLSCert,
+		cfg.TLSKey,
+		cfg.AllowInsecure,
 	)
 }
 
