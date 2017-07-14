@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package interlock.v1.configuration;
+
+service Configuration {
+  rpc Config(ConfigRequest) returns (ConfigResponse) {}
+}
+
+message Config {
+  string version = 1;
+  repeated Backend backends = 2;
+}
+
+message Backend {
+  string name = 1;
+  repeated string hosts = 2;
+  map<string, ContextRoot> context_roots = 3;
+  uint32 port = 4;
+  bool ssl = 5;
+  uint32 ssl_port = 6;
+  string ssl_cert = 7;
+  string ssl_cert_key = 8;
+  bool ssl_only = 9;
+  bool ssl_backend = 10;
+  repeated string websocket_endpoints = 11;
+  bool ip_hash = 12;
+  repeated string targets = 13;
+}
+
+message ContextRoot {
+  string name = 1;
+  string path = 2;
+  bool rewrite = 3;
+  repeated string targets = 4;
+}
+
+message ConfigRequest {}
+
+message ConfigResponse {
+  Config config = 1;
+}
