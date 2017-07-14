@@ -1,14 +1,16 @@
 package server
 
 import (
+	"net"
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	configurationapi "github.com/ehazlett/interlock/api/services/configuration"
 	"github.com/ehazlett/interlock/config"
-	"github.com/ehazlett/interlock/plugin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -16,16 +18,13 @@ const (
 )
 
 type Server struct {
-	cfg         *config.Config
-	plugins     []plugin.Plugin
-	metrics     *Metrics
-	contentHash string
+	cfg           *config.Config
+	metrics       *Metrics
+	contentHash   string
+	currentConfig *configurationapi.Config
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
-	plugins := plugin.Plugins()
-	logrus.Debugf("plugins: %+v", plugins)
-
 	return &Server{
 		cfg: cfg,
 	}, nil
@@ -36,6 +35,12 @@ func (s *Server) Run() error {
 	if s.cfg.EnableMetrics {
 		// start prometheus listener
 		http.Handle("/metrics", prometheus.Handler())
+		go func() {
+			if err := http.ListenAndServe(s.cfg.ListenAddr, nil); err != nil {
+				logrus.Error("unable to start metric listener: %s", err)
+			}
+		}()
+
 	}
 
 	if s.cfg.PollInterval != "" {
@@ -46,7 +51,7 @@ func (s *Server) Run() error {
 		}
 
 		if d < defaultPollInterval {
-			log.Warnf("poll interval too quick; defaulting to %v", defaultPollInterval)
+			log.Warnf("poll interval too quick; defaulting to %s", defaultPollInterval)
 			s.cfg.PollInterval = "2s"
 			d = defaultPollInterval
 		}
@@ -55,17 +60,24 @@ func (s *Server) Run() error {
 		t := time.NewTicker(d)
 		go func() {
 			for range t.C {
+				logrus.Debug("poll")
 				if err := s.poll(); err != nil {
 					logrus.Error(err)
 				}
 			}
 		}()
-
 	}
 
-	if err := http.ListenAndServe(s.cfg.ListenAddr, nil); err != nil {
+	grpcServer := grpc.NewServer()
+	configurationapi.RegisterConfigurationServer(grpcServer, s)
+
+	l, err := net.Listen("tcp", s.cfg.GRPCAddr)
+	if err != nil {
 		return err
 	}
+
+	logrus.Debug("starting GRPC server")
+	grpcServer.Serve(l)
 
 	return nil
 }

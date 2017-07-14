@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	configurationapi "github.com/ehazlett/interlock/api/services/configuration"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func (s *Server) poll() error {
@@ -50,8 +51,13 @@ func (s *Server) poll() error {
 		// trigger update
 		logrus.WithFields(logrus.Fields{
 			"hash": sum,
-		}).Debug("triggering update")
+		}).Debug("update")
 		s.contentHash = sum
+
+		// TODO: build backend config and send to client
+		s.currentConfig = &configurationapi.Config{
+			Version: sum,
+		}
 	}
 
 	return nil

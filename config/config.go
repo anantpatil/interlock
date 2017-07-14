@@ -40,6 +40,7 @@ type ExtensionConfig struct {
 // Config is the top level configuration
 type Config struct {
 	ListenAddr    string
+	GRPCAddr      string
 	DockerURL     string
 	TLSCACert     string
 	TLSCert       string

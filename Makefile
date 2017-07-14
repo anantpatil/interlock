@@ -1,4 +1,3 @@
-CGO_ENABLED=0
 GOOS=linux
 GOARCH=amd64
 COMMIT=`git rev-parse --short HEAD`
@@ -6,6 +5,7 @@ APP=interlock
 REPO?=ehazlett/$(APP)
 TAG?=latest
 BUILD?=-dev
+PACKAGES=$(shell go list ./... | grep -v /vendor/)
 
 all: image
 
@@ -15,6 +15,9 @@ deps:
 	@rm -rf vendor/github.com/docker/docker/vendor/github.com/docker/go-connections
 
 build: build-static
+
+generate:
+	@go generate -x ${PACKAGES}
 
 build-app:
 	@echo " -> Building $(TAG)$(BUILD)"
@@ -36,10 +39,14 @@ integration: image
 test-integration:
 	@go test -v $(TEST_ARGS) ./test/integration/...
 
+check:
+	@go vet -v ${PACKAGES}
+	@golint ${PACKAGES}
+
 test:
 	@go test -v -cover -race $(TEST_ARGS) $$(glide novendor | grep -v ./test)
 
 clean:
 	@rm cmd/$(APP)/$(APP)
 
-.PHONY: deps build build-static build-app build-image image clean test
+.PHONY: deps build build-static build-app build-image generate image clean test

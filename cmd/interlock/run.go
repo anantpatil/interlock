@@ -5,15 +5,16 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/ehazlett/interlock/config"
 	"github.com/ehazlett/interlock/server"
 	"github.com/ehazlett/interlock/version"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	defaultConfig = `ListenAddr = ":8080"
+GRPCAddr = ":8081"
 DockerURL = "unix:///var/run/docker.sock"
 EnableMetrics = true
 `

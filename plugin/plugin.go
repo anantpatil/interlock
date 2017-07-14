@@ -1,51 +1,23 @@
 package plugin
 
 import (
-	"errors"
-	"sync"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/ehazlett/interlock/api/services/configuration"
+	"google.golang.org/grpc"
 )
 
-var (
-	ErrNoPluginID = errors.New("plugin: no id")
-)
-
-type PluginType string
-
-type Registration struct {
-	Type   PluginType
-	ID     string
-	Config interface{}
-	Init   func(*InitContext) (interface{}, error)
-
-	added bool
+type Plugin struct {
+	client configuration.ConfigurationClient
 }
 
-type Plugin interface {
-	ID() string
-	Configure(services []swarm.Service) error
-	Reload() error
-}
-
-var register = struct {
-	sync.Mutex
-	r []*Registration
-}{}
-
-func Register(r *Registration) {
-	logrus.WithFields(logrus.Fields{
-		"id": r.ID,
-	}).Debug("registering plugin")
-	register.Lock()
-	defer register.Unlock()
-	if r.ID == "" {
-		panic(ErrNoPluginID)
+func NewPlugin(addr string) (*Plugin, error) {
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
 	}
-	register.r = append(register.r, r)
-}
 
-func Plugins() (plugins []*Registration) {
-	return register.r
+	client := configuration.NewConfigurationClient(conn)
+
+	return &Plugin{
+		client: client,
+	}, nil
 }
