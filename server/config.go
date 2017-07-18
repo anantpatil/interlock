@@ -7,6 +7,7 @@ import (
 
 func (s *Server) Config(ctx context.Context, req *configurationapi.ConfigRequest) (*configurationapi.ConfigResponse, error) {
 	return &configurationapi.ConfigResponse{
-		Config: s.currentConfig,
+		Config:       s.currentConfig,
+		PluginConfig: s.cfg.PluginConfig,
 	}, nil
 }

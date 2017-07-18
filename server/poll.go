@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,14 +11,15 @@ import (
 	configurationapi "github.com/ehazlett/interlock/api/services/configuration"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) poll() error {
-	logrus.Debug("poller tick")
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 
 	optFilters := filters.NewArgs()
 	optFilters.Add("desired-state", "running")
@@ -51,7 +51,7 @@ func (s *Server) poll() error {
 		// trigger update
 		logrus.WithFields(logrus.Fields{
 			"hash": sum,
-		}).Debug("update")
+		}).Info("update detected")
 		s.contentHash = sum
 
 		// TODO: build backend config and send to client

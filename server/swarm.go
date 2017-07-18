@@ -19,6 +19,7 @@ func (s *Server) getSwarmNodes() ([]*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer client.Close()
 
 	info, err := client.Info(context.Background())
 	if err != nil {
