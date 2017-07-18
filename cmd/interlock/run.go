@@ -17,6 +17,7 @@ const (
 GRPCAddr = ":8081"
 DockerURL = "unix:///var/run/docker.sock"
 EnableMetrics = true
+ProxyImage = "ehazlett/interlock-plugin-nginx:latest"
 `
 )
 
@@ -43,7 +44,7 @@ func runAction(c *cli.Context) error {
 	}
 
 	if configPath := c.String("config"); configPath != "" && data == "" {
-		logrus.Debugf("loading config from: file=%s", configPath)
+		logrus.Debugf("loading config: file=%s", configPath)
 
 		d, err := ioutil.ReadFile(configPath)
 		switch {

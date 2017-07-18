@@ -4,9 +4,10 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	typesapi "github.com/ehazlett/interlock/api/types"
 	"github.com/ehazlett/interlock/config"
+	"github.com/sirupsen/logrus"
 )
 
 var cmdSpec = cli.Command{
@@ -16,27 +17,22 @@ var cmdSpec = cli.Command{
 }
 
 func specAction(c *cli.Context) {
-	ec := &config.ExtensionConfig{
-		Name:                   "nginx",
-		ConfigPath:             "/etc/nginx/nginx.conf",
-		PidPath:                "/var/run/nginx.pid",
-		TemplatePath:           "/etc/interlock/nginx.conf.template",
-		BackendOverrideAddress: "",
+	pluginConfig := &typesapi.PluginConfig{
+		ConfigPath: "/etc/proxy.conf",
 	}
 
-	config.SetConfigDefaults(ec)
+	config.SetConfigDefaults(pluginConfig)
 
 	cfg := &config.Config{
 		ListenAddr:    ":8080",
 		GRPCAddr:      ":8081",
 		DockerURL:     "unix:///var/run/docker.sock",
 		EnableMetrics: true,
-		Extensions: []*config.ExtensionConfig{
-			ec,
-		},
+		PluginConfig:  pluginConfig,
+		ProxyImage:    "ehazlett/interlock-plugin-nginx:latest",
 	}
 
 	if err := toml.NewEncoder(os.Stdout).Encode(cfg); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
