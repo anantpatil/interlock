@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
+	typesapi "github.com/ehazlett/interlock/api/types"
 )
 
 // ParseConfig returns a Config object from a raw string config TOML
@@ -12,50 +14,73 @@ func ParseConfig(data string) (*Config, error) {
 		return nil, err
 	}
 
-	for _, ext := range cfg.Extensions {
-		// setup defaults for missing config entries
-		if err := SetConfigDefaults(ext); err != nil {
-			return nil, err
-		}
+	if cfg.PluginConfig == nil {
+		cfg.PluginConfig = &typesapi.PluginConfig{}
+	}
+
+	// setup defaults for missing config entries
+	SetConfigDefaults(cfg.PluginConfig)
+
+	// check image
+	if cfg.ProxyImage == "" {
+		return nil, fmt.Errorf("ProxyImage must be specified")
 	}
 
 	return &cfg, nil
 }
 
-// SetConfigDefaults sets default values if not present
-// ExtensionConfig.Name must be set before calling this function
-func SetConfigDefaults(c *ExtensionConfig) error {
-	if c.MaxConn == 0 {
-		c.MaxConn = 1024
+// SetConfigDefaults sets the defaults for the plugin config
+func SetConfigDefaults(c *typesapi.PluginConfig) {
+	if c.Version == "" {
+		c.Version = "1"
+	}
+
+	if c.User == "" {
+		c.User = "www-data"
+	}
+
+	if c.MaxConnections == 0 {
+		c.MaxConnections = 1024
 	}
 
 	if c.Port == 0 {
 		c.Port = 80
 	}
 
-	switch c.Name {
-	case "haproxy":
-		SetHAProxyConfigDefaults(c)
-	case "nginx":
-		SetNginxConfigDefaults(c)
-	default:
-		log.Debugf("unknown extension %q; not loading config defaults", c.Name)
+	if c.WorkerProcesses == 0 {
+		c.WorkerProcesses = 1
 	}
 
-	return nil
-}
+	if c.RlimitNoFile == 0 {
+		c.RlimitNoFile = 65535
+	}
 
-func SetHAProxyConfigDefaults(c *ExtensionConfig) {
+	if c.SendTimeout == 0 {
+		c.SendTimeout = 600
+	}
+
+	if c.ReadTimeout == 0 {
+		c.ReadTimeout = 600
+	}
+
 	if c.ConnectTimeout == 0 {
-		c.ConnectTimeout = 5000
+		c.ConnectTimeout = 600
 	}
 
 	if c.ServerTimeout == 0 {
-		c.ServerTimeout = 10000
+		c.ServerTimeout = 600
 	}
 
 	if c.ClientTimeout == 0 {
-		c.ClientTimeout = 10000
+		c.ClientTimeout = 600
+	}
+
+	if c.SslCiphers == "" {
+		c.SslCiphers = "HIGH:!aNULL:!MD5"
+	}
+
+	if c.SslProtocols == "" {
+		c.SslProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"
 	}
 
 	if c.AdminUser == "" {
@@ -66,49 +91,11 @@ func SetHAProxyConfigDefaults(c *ExtensionConfig) {
 		c.AdminPass = ""
 	}
 
-	if c.SSLDefaultDHParam == 0 {
-		c.SSLDefaultDHParam = 1024
+	if c.SslDefaultDhParam == 0 {
+		c.SslDefaultDhParam = 1024
 	}
 
-	if c.SSLServerVerify == "" {
-		c.SSLServerVerify = "required"
-	}
-}
-
-func SetNginxConfigDefaults(c *ExtensionConfig) {
-	if c.User == "" {
-		c.User = "www-data"
-	}
-
-	if c.WorkerProcesses == 0 {
-		c.WorkerProcesses = 2
-	}
-
-	if c.RLimitNoFile == 0 {
-		c.RLimitNoFile = 65535
-	}
-
-	if c.ProxyConnectTimeout == 0 {
-		c.ProxyConnectTimeout = 600
-	}
-
-	if c.ProxySendTimeout == 0 {
-		c.ProxySendTimeout = 600
-	}
-
-	if c.ProxyReadTimeout == 0 {
-		c.ProxyReadTimeout = 600
-	}
-
-	if c.SendTimeout == 0 {
-		c.SendTimeout = 600
-	}
-
-	if c.SSLCiphers == "" {
-		c.SSLCiphers = "HIGH:!aNULL:!MD5"
-	}
-
-	if c.SSLProtocols == "" {
-		c.SSLProtocols = "SSLv3 TLSv1 TLSv1.1 TLSv1.2"
+	if c.SslVerify == "" {
+		c.SslVerify = "required"
 	}
 }
