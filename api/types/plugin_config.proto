@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package interlock.v1.types;
+
+import "gogoproto/gogo.proto";
+
+// PluginConfig has all options for all load balancer plugins
+// the plugin itself will use whichever options needed
+message PluginConfig {
+  string version = 1;
+  string user = 2;
+  string config_path = 3;
+  string pid_path = 4;
+  string template_path = 5;
+  string backend_override_address = 6;
+  int64 connect_timeout = 7;
+  int64 send_timeout = 8;
+  int64 server_timeout = 9;
+  int64 client_timeout = 10;
+  int64 read_timeout = 11;
+  uint64 port = 12;
+  string admin_user = 13;
+  string admin_pass = 14;
+  string ssl_cert = 15 [(gogoproto.customname) = "SSLCert"];
+  uint64 ssl_port = 16 [(gogoproto.customname) = "SSLPort"];
+  string ssl_opts = 17 [(gogoproto.customname) = "SSLOpts"];
+  uint64 ssl_default_dh_param = 18 [(gogoproto.customname) = "SSLDefaultDHParam"];
+  string ssl_verify = 19 [(gogoproto.customname) = "SSLVerify"];
+  int64 worker_processes = 20;
+  int64 rlimit_no_file = 21 [(gogoproto.customname) = "RLimitNoFile"];
+  string ssl_ciphers = 22 [(gogoproto.customname) = "SSLCiphers"];
+  string ssl_protocols = 23 [(gogoproto.customname) = "SSLProtocols"];
+  int64 max_connections = 24;
+}

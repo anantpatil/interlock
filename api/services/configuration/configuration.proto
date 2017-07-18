@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package interlock.v1.configuration;
 
+import "github.com/ehazlett/interlock/api/types/plugin_config.proto";
+
 service Configuration {
   rpc Config(ConfigRequest) returns (ConfigResponse) {}
 }
@@ -38,4 +40,5 @@ message ConfigRequest {}
 
 message ConfigResponse {
   Config config = 1;
+  interlock.v1.types.PluginConfig plugin_config = 2;
 }
