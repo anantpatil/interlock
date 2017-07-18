@@ -9,13 +9,13 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/ehazlett/interlock/version"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	apiVersion = "1.26"
+	apiVersion = "1.30"
 )
 
 func GetTLSConfig(caCert, cert, key []byte, allowInsecure bool) (*tls.Config, error) {
@@ -57,7 +57,6 @@ func GetDockerClient(dockerUrl, tlsCaCert, tlsCert, tlsKey string, allowInsecure
 	var httpClient *http.Client
 	var tlsConfig *tls.Config
 	if tlsCaCert != "" && tlsCert != "" && tlsKey != "" {
-		log.Debug("using tls for communication with docker")
 		caCert, err := ioutil.ReadFile(tlsCaCert)
 		if err != nil {
 			log.Fatalf("error loading tls ca cert: %s", err)
@@ -86,8 +85,6 @@ func GetDockerClient(dockerUrl, tlsCaCert, tlsCert, tlsKey string, allowInsecure
 			},
 		}
 	}
-
-	log.Debugf("docker client: url=%s", dockerUrl)
 
 	defaultHeaders := map[string]string{"User-Agent": fmt.Sprintf("interlock-%s", version.Version)}
 	c, err := client.NewClient(dockerUrl, apiVersion, httpClient, defaultHeaders)
