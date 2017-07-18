@@ -17,7 +17,7 @@ deps:
 build: build-static
 
 generate:
-	@go generate -x ${PACKAGES}
+	@echo ${PACKAGES} | xargs protobuild
 
 build-app:
 	@echo " -> Building $(TAG)$(BUILD)"
