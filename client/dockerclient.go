@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/ehazlett/interlock/version"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -59,22 +59,22 @@ func GetDockerClient(dockerUrl, tlsCaCert, tlsCert, tlsKey string, allowInsecure
 	if tlsCaCert != "" && tlsCert != "" && tlsKey != "" {
 		caCert, err := ioutil.ReadFile(tlsCaCert)
 		if err != nil {
-			log.Fatalf("error loading tls ca cert: %s", err)
+			return nil, errors.Wrap(err, "error loading TLS ca cert")
 		}
 
 		cert, err := ioutil.ReadFile(tlsCert)
 		if err != nil {
-			log.Fatalf("error loading tls cert: %s", err)
+			return nil, errors.Wrap(err, "error loading TLS cert")
 		}
 
 		key, err := ioutil.ReadFile(tlsKey)
 		if err != nil {
-			log.Fatalf("error loading tls key: %s", err)
+			return nil, errors.Wrap(err, "error loading TLS key")
 		}
 
 		cfg, err := GetTLSConfig(caCert, cert, key, allowInsecure)
 		if err != nil {
-			log.Fatalf("error configuring tls: %s", err)
+			return nil, errors.Wrap(err, "error configuring TLS")
 		}
 		tlsConfig = cfg
 		tlsConfig.InsecureSkipVerify = envDockerTlsVerify == ""

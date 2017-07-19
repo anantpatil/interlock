@@ -9,11 +9,6 @@ PACKAGES=$(shell go list ./... | grep -v /vendor/)
 
 all: image
 
-deps:
-	@glide i
-# this causes an import conflict with tests.  remove this vendor. le sigh
-	@rm -rf vendor/github.com/docker/docker/vendor/github.com/docker/go-connections
-
 build: build-static
 
 generate:

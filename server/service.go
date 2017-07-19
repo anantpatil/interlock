@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ehazlett/interlock/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) getProxyService() (*swarm.Service, error) {
