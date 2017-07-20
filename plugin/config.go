@@ -36,9 +36,9 @@ func LoadServiceConfig() (*types.ServiceConfig, error) {
 	return cfg, nil
 }
 
-func (p *Plugin) Config(ctx context.Context, serviceCluster string) (*configuration.ConfigResponse, error) {
+func (p *Plugin) Config(ctx context.Context) (*configuration.ConfigResponse, error) {
 	config, err := p.client.Config(ctx, &configuration.ConfigRequest{
-		ServiceCluster: serviceCluster,
+		ServiceCluster: p.serviceConfig.ServiceCluster,
 	})
 	if err != nil {
 		return nil, err

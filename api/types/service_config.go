@@ -1,5 +1,6 @@
 package types
 
 type ServiceConfig struct {
-	Endpoint string
+	ServiceCluster string
+	Endpoint       string
 }
