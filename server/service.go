@@ -3,11 +3,11 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/ehazlett/interlock/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -21,7 +21,7 @@ func (s *Server) getProxyService() (*swarm.Service, error) {
 	defer client.Close()
 
 	optFilters := filters.NewArgs()
-	optFilters.Add("label", proxyServiceLabel)
+	optFilters.Add("label", "type="+proxyServiceLabel)
 	opts := types.ServiceListOptions{
 		Filters: optFilters,
 	}
@@ -50,91 +50,79 @@ func (s *Server) proxyServiceConfigExists() (bool, error) {
 	return svc != nil, nil
 }
 
-func (s *Server) removeProxyServiceConfig() error {
-	client, err := getDockerClient(s.cfg)
+func (s *Server) getProxyServiceConfig(version string) (*swarm.Config, error) {
+	logrus.WithFields(logrus.Fields{
+		"version": version,
+	}).Debugf("checking service config")
+	cfgs, err := s.getServiceConfigs()
 	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	optFilters := filters.NewArgs()
-	optFilters.Add("name", proxyServiceConfigName)
-	opts := types.ConfigListOptions{
-		Filters: optFilters,
+		return nil, err
 	}
 
-	cfgs, err := client.ConfigList(context.Background(), opts)
-	if err != nil {
-		return err
+	for _, cfg := range cfgs {
+		if cfg.Spec.Labels["version"] == version {
+			return &cfg, nil
+		}
 	}
 
-	if len(cfgs) > 1 {
-		return fmt.Errorf("more than one config found: %+v", cfgs)
-	}
-
-	cfg := cfgs[0]
-	if err := client.ConfigRemove(context.Background(), cfg.ID); err != nil {
-		return err
-	}
-
-	return nil
+	return nil, nil
 }
 
-func (s *Server) createProxyServiceConfig() (swarm.Config, error) {
+func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
 	cfg := swarm.Config{}
 
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
-		return cfg, err
+		return cfg, "", err
 	}
 	defer client.Close()
 
 	serviceConfigData, err := json.Marshal(s.serviceConfig)
 	if err != nil {
-		return cfg, err
+		return cfg, "", err
 	}
+
+	version := generateHash(serviceConfigData)
 
 	spec := swarm.ConfigSpec{
 		Annotations: swarm.Annotations{
-			Name: proxyServiceConfigName,
+			Name: proxyServiceConfigName + "." + version,
 			Labels: map[string]string{
-				"version": version.FullVersion(),
+				"type":    proxyServiceConfigName,
+				"version": version,
 			},
 		},
 		Data: serviceConfigData,
 	}
 
-	id := ""
-
-	proxyServiceExists, err := s.proxyServiceConfigExists()
+	config, err := s.getProxyServiceConfig(version)
 	if err != nil {
-		return cfg, err
+		return cfg, "", err
 	}
 
-	if !proxyServiceExists {
-		resp, err := client.ConfigCreate(context.Background(), spec)
-		if err != nil {
-			return cfg, err
+	if config == nil {
+		if _, err := client.ConfigCreate(context.Background(), spec); err != nil {
+			return cfg, "", err
 		}
-		id = resp.ID
+		c, err := s.getProxyServiceConfig(version)
+		if err != nil {
+			return cfg, "", err
+		}
+
+		config = c
 	}
 
-	c, _, err := client.ConfigInspectWithRaw(context.Background(), id)
-	if err != nil {
-		return cfg, err
-	}
-
-	return c, nil
+	return *config, version, nil
 }
 
-func (s *Server) createProxyService() error {
+func (s *Server) configureProxyService() error {
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	serviceConfig, err := s.createProxyServiceConfig()
+	serviceConfig, version, err := s.createProxyServiceConfig()
 	if err != nil {
 		return err
 	}
@@ -157,8 +145,8 @@ func (s *Server) createProxyService() error {
 						GID:  "0",
 						Mode: 0644,
 					},
-					ConfigName: proxyServiceConfigName,
 					ConfigID:   serviceConfig.ID,
+					ConfigName: serviceConfig.Spec.Name,
 				},
 			},
 		},
@@ -172,21 +160,113 @@ func (s *Server) createProxyService() error {
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Labels: map[string]string{
-				proxyServiceLabel: "",
-				"version":         version.FullVersion(),
+				"type": proxyServiceLabel,
 			},
 		},
 		TaskTemplate: taskSpec,
 	}
 
-	svc, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
+	serviceID := ""
+
+	svc, err := s.getProxyService()
 	if err != nil {
-		return errors.Wrapf(err, "error creating service: %+v", spec)
+		return err
+	}
+
+	if svc == nil {
+		service, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "error creating service: %+v", spec)
+		}
+
+		serviceID = service.ID
+	} else {
+		opts := types.ServiceUpdateOptions{}
+		// update service to remove current config
+		clearSpec := svc.Spec
+		clearSpec.TaskTemplate.ContainerSpec.Configs = []*swarm.ConfigReference{}
+		if _, err := client.ServiceUpdate(context.Background(), svc.ID, svc.Version, clearSpec, opts); err != nil {
+			return err
+		}
+
+		// TODO: wait for service to be updated using UpdateStatus
+		time.Sleep(time.Second * 1)
+
+		// get updated service with new version
+		updatedService, err := s.getProxyService()
+		if err != nil {
+			return err
+		}
+
+		// update service with new config
+		spec.Annotations.Name = svc.Spec.Name
+
+		if _, err := client.ServiceUpdate(context.Background(), svc.ID, updatedService.Version, spec, opts); err != nil {
+			return err
+		}
+
+		time.Sleep(time.Second * 1)
+
+		serviceID = updatedService.ID
+	}
+
+	// remove old configs
+	if err := s.cleanProxyServiceConfigs(version); err != nil {
+		return err
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"id": svc.ID,
+		"id": serviceID,
 	}).Debug("proxy service")
+
+	return nil
+}
+
+func (s *Server) getServiceConfigs() ([]swarm.Config, error) {
+	cfgs := []swarm.Config{}
+	client, err := getDockerClient(s.cfg)
+	if err != nil {
+		return cfgs, err
+	}
+	defer client.Close()
+
+	optFilters := filters.NewArgs()
+	//optFilters.Add("label", "type="+proxyServiceConfigName)
+	opts := types.ConfigListOptions{
+		Filters: optFilters,
+	}
+
+	configs, err := client.ConfigList(context.Background(), opts)
+	if err != nil {
+		return cfgs, err
+	}
+
+	return configs, nil
+}
+
+func (s *Server) cleanProxyServiceConfigs(currentHash string) error {
+	client, err := getDockerClient(s.cfg)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	cfgs, err := s.getServiceConfigs()
+	if err != nil {
+		return err
+	}
+
+	for _, cfg := range cfgs {
+		if cfg.Spec.Labels["version"] != currentHash {
+			logrus.WithFields(logrus.Fields{
+				"id":   cfg.ID,
+				"name": cfg.Spec.Annotations.Name,
+			}).Debug("removing old service config")
+			if err := client.ConfigRemove(context.Background(), cfg.ID); err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

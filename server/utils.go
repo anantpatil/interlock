@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"strings"
 
 	engineClient "github.com/docker/docker/client"
@@ -86,4 +88,10 @@ func parseSwarmNodes(driverStatus [][2]string) ([]*Node, error) {
 	}
 
 	return nodes, nil
+}
+
+func generateHash(data []byte) string {
+	h := sha1.New()
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }

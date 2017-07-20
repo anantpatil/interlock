@@ -86,22 +86,9 @@ func (s *Server) Run() error {
 	}
 
 	// proxy service
-	svc, err := s.getProxyService()
-	if err != nil {
+	logrus.Debug("configuring proxy service")
+	if err := s.configureProxyService(); err != nil {
 		return err
-	}
-
-	if svc != nil {
-		logrus.WithFields(logrus.Fields{
-			"service": svc.ID,
-		}).Debug("proxy service")
-	}
-
-	if svc == nil {
-		logrus.Debug("creating proxy service")
-		if err := s.createProxyService(); err != nil {
-			return err
-		}
 	}
 
 	logrus.Debug("starting GRPC server")

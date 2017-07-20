@@ -1,8 +1,6 @@
 package server
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"sort"
 
@@ -43,20 +41,18 @@ func (s *Server) poll() error {
 		return errors.Wrap(err, "unable to marshal task IDs")
 	}
 
-	h := sha256.New()
-	h.Write(data)
-	sum := hex.EncodeToString(h.Sum(nil))
+	hash := generateHash(data)
 
-	if sum != s.contentHash {
+	if hash != s.contentHash {
 		// trigger update
 		logrus.WithFields(logrus.Fields{
-			"hash": sum,
+			"hash": hash,
 		}).Info("update detected")
-		s.contentHash = sum
+		s.contentHash = hash
 
 		// TODO: build backend config and send to client
 		s.currentConfig = &configurationapi.Config{
-			Version: sum,
+			Version: hash,
 		}
 	}
 
