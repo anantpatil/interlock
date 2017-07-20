@@ -36,7 +36,9 @@ message ContextRoot {
   repeated string targets = 4;
 }
 
-message ConfigRequest {}
+message ConfigRequest {
+  string service_cluster = 1;
+}
 
 message ConfigResponse {
   Config config = 1;
