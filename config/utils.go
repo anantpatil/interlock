@@ -14,16 +14,18 @@ func ParseConfig(data string) (*Config, error) {
 		return nil, err
 	}
 
-	if cfg.PluginConfig == nil {
-		cfg.PluginConfig = &typesapi.PluginConfig{}
-	}
+	for _, p := range cfg.Plugins {
+		if p.Config == nil {
+			p.Config = &typesapi.PluginConfig{}
+		}
 
-	// setup defaults for missing config entries
-	SetConfigDefaults(cfg.PluginConfig)
+		// check image
+		if p.ProxyImage == "" {
+			return nil, fmt.Errorf("ProxyImage must be specified")
+		}
 
-	// check image
-	if cfg.ProxyImage == "" {
-		return nil, fmt.Errorf("ProxyImage must be specified")
+		// setup defaults for missing config entries
+		SetConfigDefaults(p.Config)
 	}
 
 	return &cfg, nil

@@ -8,12 +8,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	typesapi "github.com/ehazlett/interlock/api/types"
+	"github.com/ehazlett/interlock/config"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-func (s *Server) getProxyService() (*swarm.Service, error) {
+func (s *Server) getProxyService(serviceCluster string) (*swarm.Service, error) {
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return nil, err
@@ -22,6 +24,7 @@ func (s *Server) getProxyService() (*swarm.Service, error) {
 
 	optFilters := filters.NewArgs()
 	optFilters.Add("label", "type="+proxyServiceLabel)
+	optFilters.Add("label", "service_cluster="+serviceCluster)
 	opts := types.ServiceListOptions{
 		Filters: optFilters,
 	}
@@ -41,26 +44,14 @@ func (s *Server) getProxyService() (*swarm.Service, error) {
 	return &services[0], nil
 }
 
-func (s *Server) proxyServiceConfigExists() (bool, error) {
-	svc, err := s.getProxyService()
-	if err != nil {
-		return false, err
-	}
-
-	return svc != nil, nil
-}
-
-func (s *Server) getProxyServiceConfig(version string) (*swarm.Config, error) {
-	logrus.WithFields(logrus.Fields{
-		"version": version,
-	}).Debugf("checking service config")
+func (s *Server) getProxyServiceConfig(serviceCluster, version string) (*swarm.Config, error) {
 	cfgs, err := s.getServiceConfigs()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, cfg := range cfgs {
-		if cfg.Spec.Labels["version"] == version {
+		if cfg.Spec.Labels["service_cluster"] == serviceCluster && cfg.Spec.Labels["version"] == version {
 			return &cfg, nil
 		}
 	}
@@ -68,7 +59,7 @@ func (s *Server) getProxyServiceConfig(version string) (*swarm.Config, error) {
 	return nil, nil
 }
 
-func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
+func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, string, error) {
 	cfg := swarm.Config{}
 
 	client, err := getDockerClient(s.cfg)
@@ -77,7 +68,11 @@ func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
 	}
 	defer client.Close()
 
-	serviceConfigData, err := json.Marshal(s.serviceConfig)
+	serviceConfig := &typesapi.ServiceConfig{
+		ServiceCluster: serviceCluster,
+		Endpoint:       s.serviceConfigEndpoint,
+	}
+	serviceConfigData, err := json.Marshal(serviceConfig)
 	if err != nil {
 		return cfg, "", err
 	}
@@ -88,14 +83,20 @@ func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
 		Annotations: swarm.Annotations{
 			Name: proxyServiceConfigName + "." + version,
 			Labels: map[string]string{
-				"type":    proxyServiceConfigName,
-				"version": version,
+				"type":            proxyServiceConfigName,
+				"version":         version,
+				"service_cluster": serviceCluster,
 			},
 		},
 		Data: serviceConfigData,
 	}
 
-	config, err := s.getProxyServiceConfig(version)
+	logrus.WithFields(logrus.Fields{
+		"version":         version,
+		"service_cluster": serviceCluster,
+	}).Debugf("checking service config")
+
+	config, err := s.getProxyServiceConfig(serviceCluster, version)
 	if err != nil {
 		return cfg, "", err
 	}
@@ -104,7 +105,7 @@ func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
 		if _, err := client.ConfigCreate(context.Background(), spec); err != nil {
 			return cfg, "", err
 		}
-		c, err := s.getProxyServiceConfig(version)
+		c, err := s.getProxyServiceConfig(serviceCluster, version)
 		if err != nil {
 			return cfg, "", err
 		}
@@ -115,21 +116,21 @@ func (s *Server) createProxyServiceConfig() (swarm.Config, string, error) {
 	return *config, version, nil
 }
 
-func (s *Server) configureProxyService() error {
+func (s *Server) configurePluginService(plugin *config.Plugin) error {
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	serviceConfig, version, err := s.createProxyServiceConfig()
+	serviceConfig, version, err := s.createProxyServiceConfig(plugin.ServiceCluster)
 	if err != nil {
 		return err
 	}
 
 	taskSpec := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: s.cfg.ProxyImage,
+			Image: plugin.Image,
 			//Secrets: []*swarm.SecretReference{
 			//    {
 			//        File: &swarm.SecretReferenceFileTarget{
@@ -154,13 +155,14 @@ func (s *Server) configureProxyService() error {
 			Condition: swarm.RestartPolicyConditionAny,
 		},
 	}
-	if len(s.cfg.ProxyImageArgs) > 0 {
-		taskSpec.ContainerSpec.Args = s.cfg.ProxyImageArgs
+	if len(plugin.Args) > 0 {
+		taskSpec.ContainerSpec.Args = plugin.Args
 	}
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Labels: map[string]string{
-				"type": proxyServiceLabel,
+				"type":            proxyServiceLabel,
+				"service_cluster": plugin.ServiceCluster,
 			},
 		},
 		TaskTemplate: taskSpec,
@@ -168,7 +170,7 @@ func (s *Server) configureProxyService() error {
 
 	serviceID := ""
 
-	svc, err := s.getProxyService()
+	svc, err := s.getProxyService(plugin.ServiceCluster)
 	if err != nil {
 		return err
 	}
@@ -193,7 +195,7 @@ func (s *Server) configureProxyService() error {
 		time.Sleep(time.Second * 1)
 
 		// get updated service with new version
-		updatedService, err := s.getProxyService()
+		updatedService, err := s.getProxyService(plugin.ServiceCluster)
 		if err != nil {
 			return err
 		}
@@ -216,7 +218,8 @@ func (s *Server) configureProxyService() error {
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"id": serviceID,
+		"id":              serviceID,
+		"service_cluster": plugin.ServiceCluster,
 	}).Debug("proxy service")
 
 	return nil

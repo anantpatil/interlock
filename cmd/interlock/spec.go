@@ -28,8 +28,16 @@ func specAction(c *cli.Context) {
 		GRPCAddr:      ":8081",
 		DockerURL:     "unix:///var/run/docker.sock",
 		EnableMetrics: true,
-		PluginConfig:  pluginConfig,
-		ProxyImage:    "ehazlett/interlock-plugin-nginx:latest",
+		Plugins: []*config.Plugin{
+			{
+				Image:          "ehazlett/interlock-plugin-nginx:latest",
+				Args:           []string{},
+				ProxyImage:     "nginx:latest",
+				ProxyArgs:      []string{},
+				ServiceCluster: "default",
+				Config:         pluginConfig,
+			},
+		},
 	}
 
 	if err := toml.NewEncoder(os.Stdout).Encode(cfg); err != nil {

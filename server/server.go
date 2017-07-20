@@ -1,12 +1,12 @@
 package server
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"time"
 
 	configurationapi "github.com/ehazlett/interlock/api/services/configuration"
-	"github.com/ehazlett/interlock/api/types"
 	"github.com/ehazlett/interlock/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -20,18 +20,23 @@ const (
 	proxyServiceConfigName = "interlock.config"
 )
 
+var (
+	ErrServiceClusterConfigDoesNotExist = errors.New("service cluster config does not exist")
+)
+
 type Server struct {
-	cfg           *config.Config
-	metrics       *Metrics
-	contentHash   string
-	currentConfig *configurationapi.Config
-	serviceConfig *types.ServiceConfig
+	cfg                   *config.Config
+	metrics               *Metrics
+	contentHash           string
+	currentConfig         *configurationapi.Config
+	plugins               map[string]*config.Plugin
+	serviceConfigEndpoint string
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
 	return &Server{
-		cfg:           cfg,
-		serviceConfig: &types.ServiceConfig{},
+		cfg:     cfg,
+		plugins: map[string]*config.Plugin{},
 	}, nil
 }
 
@@ -80,15 +85,20 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	// TODO: build service config
+	// TODO: build service config endpoint
 	if s.cfg.EndpointOverride != "" {
-		s.serviceConfig.Endpoint = s.cfg.EndpointOverride
+		s.serviceConfigEndpoint = s.cfg.EndpointOverride
 	}
 
 	// proxy service
-	logrus.Debug("configuring proxy service")
-	if err := s.configureProxyService(); err != nil {
-		return err
+	logrus.Debug("configuring proxy services")
+	for _, p := range s.cfg.Plugins {
+		s.plugins[p.ServiceCluster] = p
+		if err := s.configurePluginService(p); err != nil {
+			return err
+		}
+
+		// TODO: configure proxy service
 	}
 
 	logrus.Debug("starting GRPC server")
