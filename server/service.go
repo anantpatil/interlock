@@ -79,9 +79,10 @@ func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, 
 
 	version := generateHash(serviceConfigData)
 
+	name := getProxyServiceConfigName(version)
 	spec := swarm.ConfigSpec{
 		Annotations: swarm.Annotations{
-			Name: proxyServiceConfigName + "." + version,
+			Name: name,
 			Labels: map[string]string{
 				"type":            proxyServiceConfigName,
 				"version":         version,
@@ -234,7 +235,7 @@ func (s *Server) getServiceConfigs() ([]swarm.Config, error) {
 	defer client.Close()
 
 	optFilters := filters.NewArgs()
-	//optFilters.Add("label", "type="+proxyServiceConfigName)
+	optFilters.Add("label", "type="+proxyServiceConfigName)
 	opts := types.ConfigListOptions{
 		Filters: optFilters,
 	}
@@ -272,4 +273,8 @@ func (s *Server) cleanProxyServiceConfigs(currentHash string) error {
 	}
 
 	return nil
+}
+
+func getProxyServiceConfigName(version string) string {
+	return proxyServiceConfigName + "." + version
 }

@@ -5,7 +5,7 @@ package interlock.v1.configuration;
 import "github.com/ehazlett/interlock/api/types/plugin_config.proto";
 
 service Configuration {
-  rpc Config(ConfigRequest) returns (ConfigResponse) {}
+  rpc PluginConfig(PluginConfigRequest) returns (PluginConfigResponse) {}
 }
 
 message Config {
@@ -36,11 +36,11 @@ message ContextRoot {
   repeated string targets = 4;
 }
 
-message ConfigRequest {
+message PluginConfigRequest {
   string service_cluster = 1;
 }
 
-message ConfigResponse {
+message PluginConfigResponse {
   Config config = 1;
   interlock.v1.types.PluginConfig plugin_config = 2;
 }

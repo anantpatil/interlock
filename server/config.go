@@ -5,12 +5,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *Server) Config(ctx context.Context, req *configurationapi.ConfigRequest) (*configurationapi.ConfigResponse, error) {
+func (s *Server) PluginConfig(ctx context.Context, req *configurationapi.PluginConfigRequest) (*configurationapi.PluginConfigResponse, error) {
 	c, ok := s.plugins[req.ServiceCluster]
 	if !ok {
 		return nil, ErrServiceClusterConfigDoesNotExist
 	}
-	return &configurationapi.ConfigResponse{
+	return &configurationapi.PluginConfigResponse{
 		Config:       s.currentConfig,
 		PluginConfig: c.Config,
 	}, nil

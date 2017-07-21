@@ -22,11 +22,8 @@ type Config struct {
 
 type Plugin struct {
 	// Image to use for the plugin
-	Image string
-	Args  []string
-	// ProxyImage is the proxy image to use for the plugin
-	ProxyImage     string
-	ProxyArgs      []string
+	Image          string
+	Args           []string
 	ServiceCluster string
 	Config         *typesapi.PluginConfig
 }

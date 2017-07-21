@@ -32,8 +32,6 @@ func specAction(c *cli.Context) {
 			{
 				Image:          "ehazlett/interlock-plugin-nginx:latest",
 				Args:           []string{},
-				ProxyImage:     "nginx:latest",
-				ProxyArgs:      []string{},
 				ServiceCluster: "default",
 				Config:         pluginConfig,
 			},

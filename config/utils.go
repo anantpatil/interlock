@@ -20,8 +20,8 @@ func ParseConfig(data string) (*Config, error) {
 		}
 
 		// check image
-		if p.ProxyImage == "" {
-			return nil, fmt.Errorf("ProxyImage must be specified")
+		if p.Image == "" {
+			return nil, fmt.Errorf("Image must be specified")
 		}
 
 		// setup defaults for missing config entries

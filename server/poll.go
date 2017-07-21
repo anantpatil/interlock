@@ -41,18 +41,18 @@ func (s *Server) poll() error {
 		return errors.Wrap(err, "unable to marshal task IDs")
 	}
 
-	hash := generateHash(data)
+	version := generateHash(data)
 
-	if hash != s.contentHash {
+	if version != s.contentHash {
 		// trigger update
 		logrus.WithFields(logrus.Fields{
-			"hash": hash,
+			"version": version,
 		}).Info("update detected")
-		s.contentHash = hash
+		s.contentHash = version
 
 		// TODO: build backend config and send to client
 		s.currentConfig = &configurationapi.Config{
-			Version: hash,
+			Version: version,
 		}
 	}
 

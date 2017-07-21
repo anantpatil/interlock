@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultPollInterval    = time.Second * 2
-	proxyServiceLabel      = "interlock.core.proxy_image"
+	proxyServiceLabel      = "interlock.core.proxy"
 	proxyServiceConfigName = "interlock.config"
 )
 
