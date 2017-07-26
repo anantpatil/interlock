@@ -43,6 +43,8 @@ func SetConfigDefaults(c *ExtensionConfig) error {
 		SetNginxConfigDefaults(c)
 	case "beacon":
 		SetBeaconConfigDefaults(c)
+	case "avi":
+		SetAviConfigDefaults(c)
 	default:
 		log.Debugf("unknown extension %q; not loading config defaults", c.Name)
 	}
@@ -126,4 +128,23 @@ func SetBeaconConfigDefaults(c *ExtensionConfig) {
 	if c.StatsInfluxDBPrecision == "" {
 		c.StatsInfluxDBPrecision = "s"
 	}
+}
+
+func SetAviConfigDefaults(c *ExtensionConfig) {
+	if c.AviControllerPort == "" {
+		c.AviControllerPort = "9443"
+	}
+
+	if c.SSLServerVerify == "" {
+		c.SSLServerVerify = "required"
+	}
+
+	if c.AviCloudName == "" {
+		c.AviCloudName = "Default-Cloud"
+	}
+
+	// TODO: When a nw is chosen, subnet also needs to be
+	// if c.AviIPAMNetwork == "" {
+	// c.AviIPAMNetwork = ""
+	// }
 }

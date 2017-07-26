@@ -63,6 +63,10 @@ func (p *HAProxyLoadBalancer) Template() string {
 
 }
 
+func (p *HAProxyLoadBalancer) NeedsReload() bool {
+	return true
+}
+
 func (p *HAProxyLoadBalancer) Reload(proxyContainers []types.Container) error {
 	// drop SYN to allow for restarts
 	if err := p.dropSYN(); err != nil {

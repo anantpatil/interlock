@@ -70,6 +70,10 @@ func (p *NginxLoadBalancer) ConfigPath() string {
 	return p.cfg.ConfigPath
 }
 
+func (p *NginxLoadBalancer) NeedsReload() bool {
+	return true
+}
+
 func (p *NginxLoadBalancer) Reload(proxyContainers []types.Container) error {
 	// restart all interlock managed nginx containers
 	for _, cnt := range proxyContainers {

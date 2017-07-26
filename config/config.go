@@ -29,7 +29,7 @@ type ExtensionConfig struct {
 	SSLPort                       int              // haproxy, nginx
 	SSLOpts                       string           // haproxy
 	SSLDefaultDHParam             int              // haproxy
-	SSLServerVerify               string           // haproxy
+	SSLServerVerify               string           // haproxy, avi
 	DHParam                       bool             // nginx
 	DHParamPath                   string           // nginx
 	NginxPlusEnabled              bool             // nginx
@@ -51,6 +51,16 @@ type ExtensionConfig struct {
 	StatsInfluxDBDatabase         string           // beacon (influxdb)
 	StatsInfluxDBPrecision        string           // beacon (influxdb)
 	Rules                         map[string]*Rule // beacon FIXME: this isn't loaded properly from toml; we set it as a hack now
+
+	AviUser           string // Avi user
+	AviPassword       string // Avi password
+	AviControllerAddr string // Avi controller IP address
+	AviControllerPort string // Avi controller Port
+	AviTenant         string // Avi tenant, optional
+	AviCloudName      string // Avi Cloud, defaults to Default-Cloud
+	// TODO: when network is chosen, subnet is also required
+	// AviIPAMNetwork  string // IPAM network to auto allocate IP for VS
+	AviDNSSubdomain string // Subdomain to assign domain name to app
 }
 
 // Config is the top level configuration
