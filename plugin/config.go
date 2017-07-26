@@ -48,6 +48,20 @@ func (p *Plugin) PluginConfig(ctx context.Context) (*configuration.PluginConfigR
 	return config, nil
 }
 
+// UpdateProxyConfig updates the proxy config for the current service cluster
+func (p *Plugin) UpdateProxyConfig(ctx context.Context, data []byte) (*configuration.UpdateProxyConfigResponse, error) {
+	resp, err := p.client.UpdateProxyConfig(ctx, &configuration.UpdateProxyConfigRequest{
+		ServiceCluster: p.serviceConfig.ServiceCluster,
+		Data:           data,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// Endpoint returns the current Interlock endpoint
 func (p *Plugin) Endpoint() string {
 	if p.serviceConfig == nil {
 		return ""

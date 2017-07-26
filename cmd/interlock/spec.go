@@ -30,10 +30,13 @@ func specAction(c *cli.Context) {
 		EnableMetrics: true,
 		Plugins: []*config.Plugin{
 			{
-				Image:          "ehazlett/interlock-plugin-nginx:latest",
-				Args:           []string{},
-				ServiceCluster: "default",
-				Config:         pluginConfig,
+				Image:           "ehazlett/interlock-plugin-nginx:latest",
+				Args:            []string{},
+				ProxyImage:      "nginx:latest",
+				ProxyArgs:       []string{},
+				ProxyConfigPath: "/etc/nginx/nginx.conf",
+				ServiceCluster:  "default",
+				Config:          pluginConfig,
 			},
 		},
 	}

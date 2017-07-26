@@ -6,6 +6,7 @@ import "github.com/ehazlett/interlock/api/types/plugin_config.proto";
 
 service Configuration {
   rpc PluginConfig(PluginConfigRequest) returns (PluginConfigResponse) {}
+  rpc UpdateProxyConfig(UpdateProxyConfigRequest) returns (UpdateProxyConfigResponse) {}
 }
 
 message Config {
@@ -44,3 +45,9 @@ message PluginConfigResponse {
   Config config = 1;
   interlock.v1.types.PluginConfig plugin_config = 2;
 }
+
+message UpdateProxyConfigRequest {
+  string service_cluster = 1;
+  bytes data = 2;
+}
+message UpdateProxyConfigResponse {}

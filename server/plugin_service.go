@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -15,7 +14,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *Server) getProxyService(serviceCluster string) (*swarm.Service, error) {
+func (s *Server) getPluginService(serviceCluster string) (*swarm.Service, error) {
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return nil, err
@@ -23,7 +22,7 @@ func (s *Server) getProxyService(serviceCluster string) (*swarm.Service, error) 
 	defer client.Close()
 
 	optFilters := filters.NewArgs()
-	optFilters.Add("label", "type="+proxyServiceLabel)
+	optFilters.Add("label", "type="+pluginServiceLabel)
 	optFilters.Add("label", "service_cluster="+serviceCluster)
 	opts := types.ServiceListOptions{
 		Filters: optFilters,
@@ -38,14 +37,14 @@ func (s *Server) getProxyService(serviceCluster string) (*swarm.Service, error) 
 	}
 
 	if len(services) > 1 {
-		return nil, fmt.Errorf("found more than one proxy service: %+v", services)
+		return nil, fmt.Errorf("found more than one plugin service: %+v", services)
 	}
 
 	return &services[0], nil
 }
 
-func (s *Server) getProxyServiceConfig(serviceCluster, version string) (*swarm.Config, error) {
-	cfgs, err := s.getServiceConfigs()
+func (s *Server) getPluginServiceConfig(serviceCluster, version string) (*swarm.Config, error) {
+	cfgs, err := s.getPluginServiceConfigs()
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +58,7 @@ func (s *Server) getProxyServiceConfig(serviceCluster, version string) (*swarm.C
 	return nil, nil
 }
 
-func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, string, error) {
+func (s *Server) createPluginServiceConfig(serviceCluster string) (swarm.Config, string, error) {
 	cfg := swarm.Config{}
 
 	client, err := getDockerClient(s.cfg)
@@ -79,12 +78,12 @@ func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, 
 
 	version := generateHash(serviceConfigData)
 
-	name := getProxyServiceConfigName(version)
+	name := getPluginServiceConfigName(version)
 	spec := swarm.ConfigSpec{
 		Annotations: swarm.Annotations{
 			Name: name,
 			Labels: map[string]string{
-				"type":            proxyServiceConfigName,
+				"type":            pluginServiceConfigName,
 				"version":         version,
 				"service_cluster": serviceCluster,
 			},
@@ -97,7 +96,7 @@ func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, 
 		"service_cluster": serviceCluster,
 	}).Debugf("checking service config")
 
-	config, err := s.getProxyServiceConfig(serviceCluster, version)
+	config, err := s.getPluginServiceConfig(serviceCluster, version)
 	if err != nil {
 		return cfg, "", err
 	}
@@ -106,7 +105,7 @@ func (s *Server) createProxyServiceConfig(serviceCluster string) (swarm.Config, 
 		if _, err := client.ConfigCreate(context.Background(), spec); err != nil {
 			return cfg, "", err
 		}
-		c, err := s.getProxyServiceConfig(serviceCluster, version)
+		c, err := s.getPluginServiceConfig(serviceCluster, version)
 		if err != nil {
 			return cfg, "", err
 		}
@@ -124,7 +123,7 @@ func (s *Server) configurePluginService(plugin *config.Plugin) error {
 	}
 	defer client.Close()
 
-	serviceConfig, version, err := s.createProxyServiceConfig(plugin.ServiceCluster)
+	serviceConfig, version, err := s.createPluginServiceConfig(plugin.ServiceCluster)
 	if err != nil {
 		return err
 	}
@@ -162,7 +161,7 @@ func (s *Server) configurePluginService(plugin *config.Plugin) error {
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Labels: map[string]string{
-				"type":            proxyServiceLabel,
+				"type":            pluginServiceLabel,
 				"service_cluster": plugin.ServiceCluster,
 			},
 		},
@@ -171,7 +170,7 @@ func (s *Server) configurePluginService(plugin *config.Plugin) error {
 
 	serviceID := ""
 
-	svc, err := s.getProxyService(plugin.ServiceCluster)
+	svc, err := s.getPluginService(plugin.ServiceCluster)
 	if err != nil {
 		return err
 	}
@@ -185,48 +184,35 @@ func (s *Server) configurePluginService(plugin *config.Plugin) error {
 		serviceID = service.ID
 	} else {
 		opts := types.ServiceUpdateOptions{}
-		// update service to remove current config
-		clearSpec := svc.Spec
-		clearSpec.TaskTemplate.ContainerSpec.Configs = []*swarm.ConfigReference{}
-		if _, err := client.ServiceUpdate(context.Background(), svc.ID, svc.Version, clearSpec, opts); err != nil {
-			return err
-		}
-
-		// TODO: wait for service to be updated using UpdateStatus
-		time.Sleep(time.Second * 1)
-
 		// get updated service with new version
-		updatedService, err := s.getProxyService(plugin.ServiceCluster)
+		updatedService, err := s.getPluginService(plugin.ServiceCluster)
 		if err != nil {
 			return err
 		}
 
 		// update service with new config
 		spec.Annotations.Name = svc.Spec.Name
-
 		if _, err := client.ServiceUpdate(context.Background(), svc.ID, updatedService.Version, spec, opts); err != nil {
 			return err
 		}
-
-		time.Sleep(time.Second * 1)
 
 		serviceID = updatedService.ID
 	}
 
 	// remove old configs
-	if err := s.cleanProxyServiceConfigs(version); err != nil {
+	if err := s.cleanPluginServiceConfigs(version); err != nil {
 		return err
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"id":              serviceID,
 		"service_cluster": plugin.ServiceCluster,
-	}).Debug("proxy service")
+	}).Debug("plugin service")
 
 	return nil
 }
 
-func (s *Server) getServiceConfigs() ([]swarm.Config, error) {
+func (s *Server) getPluginServiceConfigs() ([]swarm.Config, error) {
 	cfgs := []swarm.Config{}
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
@@ -235,7 +221,7 @@ func (s *Server) getServiceConfigs() ([]swarm.Config, error) {
 	defer client.Close()
 
 	optFilters := filters.NewArgs()
-	optFilters.Add("label", "type="+proxyServiceConfigName)
+	optFilters.Add("label", "type="+pluginServiceConfigName)
 	opts := types.ConfigListOptions{
 		Filters: optFilters,
 	}
@@ -248,14 +234,14 @@ func (s *Server) getServiceConfigs() ([]swarm.Config, error) {
 	return configs, nil
 }
 
-func (s *Server) cleanProxyServiceConfigs(currentHash string) error {
+func (s *Server) cleanPluginServiceConfigs(currentHash string) error {
 	client, err := getDockerClient(s.cfg)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	cfgs, err := s.getServiceConfigs()
+	cfgs, err := s.getPluginServiceConfigs()
 	if err != nil {
 		return err
 	}
@@ -275,6 +261,6 @@ func (s *Server) cleanProxyServiceConfigs(currentHash string) error {
 	return nil
 }
 
-func getProxyServiceConfigName(version string) string {
-	return proxyServiceConfigName + "." + version
+func getPluginServiceConfigName(version string) string {
+	return pluginServiceConfigName + "." + version
 }

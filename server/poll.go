@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	configurationapi "github.com/ehazlett/interlock/api/services/configuration"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -38,7 +37,7 @@ func (s *Server) poll() error {
 
 	data, err := json.Marshal(taskIDs)
 	if err != nil {
-		return errors.Wrap(err, "unable to marshal task IDs")
+		return errors.Wrap(err, "poll: unable to marshal task IDs")
 	}
 
 	version := generateHash(data)
@@ -50,9 +49,8 @@ func (s *Server) poll() error {
 		}).Info("update detected")
 		s.contentHash = version
 
-		// TODO: build backend config and send to client
-		s.currentConfig = &configurationapi.Config{
-			Version: version,
+		if err := s.updateConfiguration(); err != nil {
+			return errors.Wrap(err, "poll: unable to update configuration")
 		}
 	}
 

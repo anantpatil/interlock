@@ -15,13 +15,16 @@ import (
 )
 
 const (
-	defaultPollInterval    = time.Second * 2
-	proxyServiceLabel      = "interlock.core.proxy"
-	proxyServiceConfigName = "interlock.config"
+	defaultPollInterval     = time.Second * 2
+	pluginServiceLabel      = "interlock.core.plugin"
+	pluginServiceConfigName = "interlock.config"
+	proxyServiceLabel       = "interlock.core.proxy"
+	proxyServiceConfigName  = "interlock.proxy"
 )
 
 var (
 	ErrServiceClusterConfigDoesNotExist = errors.New("service cluster config does not exist")
+	ErrProxyServiceConfigDoesNotExist   = errors.New("proxy service config does not exist")
 )
 
 type Server struct {
@@ -91,14 +94,12 @@ func (s *Server) Run() error {
 	}
 
 	// proxy service
-	logrus.Debug("configuring proxy services")
+	logrus.Debug("configuring plugins")
 	for _, p := range s.cfg.Plugins {
 		s.plugins[p.ServiceCluster] = p
 		if err := s.configurePluginService(p); err != nil {
 			return err
 		}
-
-		// TODO: configure proxy service
 	}
 
 	logrus.Debug("starting GRPC server")

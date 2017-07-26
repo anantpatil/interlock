@@ -15,3 +15,18 @@ func (s *Server) PluginConfig(ctx context.Context, req *configurationapi.PluginC
 		PluginConfig: c.Config,
 	}, nil
 }
+
+func (s *Server) UpdateProxyConfig(ctx context.Context, req *configurationapi.UpdateProxyConfigRequest) (*configurationapi.UpdateProxyConfigResponse, error) {
+	// TODO: create new proxy config
+	_, version, err := s.createProxyServiceConfig(req.ServiceCluster, req.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: update proxy service
+	if err := s.configureProxyService(req.ServiceCluster, version); err != nil {
+		return nil, err
+	}
+
+	return &configurationapi.UpdateProxyConfigResponse{}, nil
+}

@@ -21,9 +21,14 @@ type Config struct {
 }
 
 type Plugin struct {
-	// Image to use for the plugin
-	Image          string
-	Args           []string
-	ServiceCluster string
-	Config         *typesapi.PluginConfig
+	// Image to use for the plugin service
+	Image string
+	Args  []string
+	// Image for the proxy service
+	ProxyImage string
+	ProxyArgs  []string
+	// Config path in the service for the proxy config
+	ProxyConfigPath string
+	ServiceCluster  string
+	Config          *typesapi.PluginConfig
 }
