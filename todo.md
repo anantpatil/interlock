@@ -14,3 +14,4 @@ TODO
 - [ ] Periodic Sync of VS and Pool Members with Avi
 - [ ] Use SSL Verify while connecting to Avi controller 
 - [ ] Support for separate data and control networks
+- [ ] Update the gist to add information of "interlock.hostname" label
